@@ -33,6 +33,11 @@ namespace core
         {
             this.Text = text;
         }
+        
+        public String PMText()
+        {
+            return this.Text;
+        }
 
         public bool Contains(String text)
         {
