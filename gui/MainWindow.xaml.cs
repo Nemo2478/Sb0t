@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -42,6 +42,7 @@ namespace gui
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
+   
     public partial class MainWindow : Window
     {
         public static bool SETTING_UP { get; set; }
@@ -129,8 +130,28 @@ namespace gui
             catch { }
         }
 
+        private void chatLogs()
+        {
+            RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\sb0t\\" + AppDomain.CurrentDomain.FriendlyName + "logformat");
+            if (key == null)
+            {
+                Registry.CurrentUser.CreateSubKey("Software\\sb0t\\" + AppDomain.CurrentDomain.FriendlyName + "logformat");
+                key = Registry.CurrentUser.OpenSubKey("Software\\sb0t\\" + AppDomain.CurrentDomain.FriendlyName + "logformat");
+            }
+            if (key != null)
+            {
+                if(key.GetValue("logformat") != null)
+                {
+                    int value = (int)key.GetValue("logformat");
+                    this.logFormat.SelectedIndex = value;
+                }
+            }
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            chatLogs();
+
             if (this.do_once)
             {
                 this.do_once = false;
@@ -628,6 +649,20 @@ namespace gui
         private void EnglishClicked(object sender, MouseButtonEventArgs e)
         {
             GUILabels.SetEnglish(this);
+        }
+
+        private void Label_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Window1 window1 = new Window1();
+            window1.ShowDialog();
+        }
+
+        private void ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\sb0t\\" + AppDomain.CurrentDomain.FriendlyName + "logformat", true);
+
+            key.SetValue("logformat", this.logFormat.SelectedIndex, RegistryValueKind.DWord);
+            key.Close();
         }
     }
 }
