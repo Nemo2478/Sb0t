@@ -28,6 +28,8 @@ namespace iconnect
     {
         /// <summary>Check if PM contains specific text</summary>
         bool Contains(String text);
+         /// <summary>Text</summary>
+        String PMText();
         /// <summary>Replace text in PM with new text</summary>
         void Replace(String oldText, String newText);
         /// <summary>Remove specific text from PM</summary>
