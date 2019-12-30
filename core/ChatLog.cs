@@ -21,13 +21,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using Microsoft.Win32;
 
 namespace core
 {
     class ChatLog
     {
-        public static void WriteLine(String text)
+    public static void WriteLine(String text)
         {
+            RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\sb0t\\" + AppDomain.CurrentDomain.FriendlyName + "logformat");
+
             if (Settings.Get<bool>("logging"))
             {
                 try
@@ -43,7 +46,24 @@ namespace core
                     path += ("\\" + d.Day + " " + d.Month + " " + d.Year + ".txt");
 
                     using (StreamWriter writer = File.Exists(path) ? File.AppendText(path) : File.CreateText(path))
-                        writer.WriteLine(d.ToShortTimeString() + " " + text);
+                    {
+                        if (key != null)
+                        {
+                            int value = (int)key.GetValue("logformat");
+                            if (value==0)
+                            {
+                                writer.WriteLine(d.ToShortTimeString() + " " + text);
+                            }
+                            else
+                            {
+                                writer.WriteLine(d.ToLongTimeString() + " " + text);
+                            }
+                        }
+                        else
+                        {
+                            writer.WriteLine(d.ToShortTimeString() + " " + text);
+                        }
+                    }
                 }
                 catch { }
             }
