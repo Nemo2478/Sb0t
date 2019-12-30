@@ -36,6 +36,9 @@ namespace gui
 
         public static void Setup(MainWindow w)
         {
+            english["logtime"] = "Logtimeformat:";
+            spanish["logtime"] = "Formato de tiempo del registro:";
+
             english["button1a"] = "Start server";
             spanish["button1a"] = "Comenzar el servidor";
 
@@ -290,6 +293,7 @@ namespace gui
                 w.statusLabel.Content = spanish["statuslabela"];
             }
 
+            w.logtime.Content = spanish["logtime"];
             w.label2.Content = spanish["label2"];
             w.label3.Content = spanish["label3"];
             w.label4.Content = spanish["label4"];
@@ -388,6 +392,7 @@ namespace gui
                 w.statusLabel.Content = english["statuslabela"];
             }
 
+            w.logtime.Content = english["logtime"];
             w.label2.Content = english["label2"];
             w.label3.Content = english["label3"];
             w.label4.Content = english["label4"];
