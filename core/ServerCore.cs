@@ -48,8 +48,6 @@ namespace core
         private Thread thread;
         private bool terminate = false;
 
-        private Dictionary<string, (ulong time, ulong count)> _connectFlood;
-
         public bool Running { get; private set; }
 
         public iconnect.ICommandDefault[] DefaultCommandLevels
@@ -72,7 +70,6 @@ namespace core
             Settings.Reset();
             Time.Reset();
             this.tcp = new TcpListenerEx(new IPEndPoint(IPAddress.Any, Settings.Port));
-            _connectFlood = new Dictionary<string, (ulong time, ulong count)>();
 
             try
             {
@@ -166,7 +163,6 @@ namespace core
             ulong channel_push_timer = (Time.Now - 1200000);
             ulong reset_floods_timer = Time.Now;
             ulong room_search_timer = (Time.Now - 1800000);
-            ulong connect_flood_expire = Time.Now + 300000;
             bool can_web_chat = Settings.Get<bool>("enabled", "web");
             core.LinkHub.LinkMode link_mode = (core.LinkHub.LinkMode) Settings.Get<int>("link_mode");
             Linker = new LinkLeaf.LinkClient();
@@ -205,12 +201,6 @@ namespace core
                     reset_floods_timer = time;
                     FloodControl.Reset();
                     Proxies.Updater(Helpers.UnixTime);
-
-                    foreach(var item in _connectFlood.Where(kvp => kvp.Value.time < (time + connect_flood_expire)).ToList())
-                    {
-                        _connectFlood.Remove(item.Key);
-                    }
-
                 }
 
                 this.udp.ServiceUdp(time);
@@ -246,33 +236,20 @@ namespace core
 
         private void CheckTCPListener(ulong time)
         {
-            if (!this.tcp.Active)
-                return;
-
-            for (int i = 0; i < 5; i++)
+            if (this.tcp.Active)
             {
-                if (!this.tcp.Pending())
-                    return;
-
-                Socket sock = this.tcp.AcceptSocket();
-
-                string ipAddress = ((IPEndPoint)sock.RemoteEndPoint).Address.ToString();
-                if (_connectFlood.ContainsKey(ipAddress))
+                for(int i = 0; i < 5; i++)
                 {
-                    if (_connectFlood[ipAddress].count >= 3)
+                    if(!this.tcp.Pending())
                     {
-                        var item = _connectFlood[ipAddress];
-                        item.time = time;
-                        _connectFlood[ipAddress] = item;
-
-
-                        sock.Dispose();
-                        return;
+                        break;
                     }
-                }
 
-                if (!this.udp.IsTcpChecker(sock))
-                    UserPool.CreateAresClient(sock, time);
+                    Socket sock = this.tcp.AcceptSocket();
+
+                    if (!this.udp.IsTcpChecker(sock))
+                        UserPool.CreateAresClient(sock, time);
+                }
             }
         }
 
@@ -415,18 +392,6 @@ namespace core
 
                     if (client.SocketConnected)
                         client.EnforceRules(time);
-
-                    if (client.SocketConnected)
-                        continue;
-
-                    string ipAddress = client.SocketAddr.ToString();
-                    if (_connectFlood.ContainsKey(ipAddress))
-                    {
-                        var item = _connectFlood[ipAddress];
-                        _connectFlood[ipAddress] = (time, item.count + 1);
-                    }
-                    else
-                        _connectFlood[ipAddress] = (time, 1);
                 }
 
             UserPool.AUsers.ForEachWhere(x => x.Disconnect(), x => !x.SocketConnected);
@@ -463,59 +428,41 @@ namespace core
 
         private static async void CheckLatestVersion()
         {
+            string content;
+
             try
             {
-                using (var client = new HttpClient())
+                Uri uri = new Uri("https://drive.google.com/uc?export=download&id=1ctm50CPHKzDcr9G4nOjYiAQhPG7nqZWF");
+
+                using (WebClient wc = new WebClient())
                 {
-                    client.DefaultRequestHeaders.Add(
-                        "User-Agent", "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
-                    );
-
-                    using (var response = await client.GetAsync(Settings.VERSION_CHECK_URL))
-                    using (var content = response.Content)
-                    {
-                        {
-                            var result = await content.ReadAsStringAsync();
-
-                            if (result == null)
-                            {
-                                return;
-                            }
-
-                            dynamic json = JsonConvert.DeserializeObject(result);
-                            string version = json[0].tag_name;
-
-                            version = version.ToLower().Replace("v", "").Trim();                        
-
-                            if (version.ToLower().Equals(Settings.VERSION_NUMBER.ToLower()))
-                            {
-                                return;
-                            }
-
-                            String message =
-                                "A new version(v" + version + ") of sb0t is available, download it at " +
-                                Settings.RELEASE_URL;
-
-                            // ares users
-                            UserPool.AUsers.ForEachWhere(x =>
-                            {
-                                if (x.Level >= ILevel.Host)
-                                    x.Print(message);
-                                x.PM(Settings.Get<String>("bot"), message);
-                            }, x => x.LoggedIn && !x.Quarantined && x.Owner);
-
-                            // web users
-                            UserPool.WUsers.ForEachWhere(x =>
-                            {
-                                if (x.Level >= ILevel.Host)
-                                    x.Print(message);
-                                x.PM(Settings.Get<String>("bot"), message);
-                            }, x => x.LoggedIn && !x.Quarantined && x.Owner);
-                
-                        }
-
-                    }
+                    content = wc.DownloadString(uri);
                 }
+
+                if (content.ToLower().Equals(Settings.VERSION_NUMBER.ToLower()))
+                {
+                    return;
+                }
+
+                String message =
+                    "A new version(v" + content + ") of sb0t is available, download it at " +
+                    Settings.RELEASE_URL;
+
+                // ares users
+                UserPool.AUsers.ForEachWhere(x =>
+                {
+                    if (x.Level >= ILevel.Host)
+                        x.Print(message);
+                    x.PM(Settings.Get<String>("bot"), message);
+                }, x => x.LoggedIn && !x.Quarantined && x.Owner);
+
+                // web users
+                UserPool.WUsers.ForEachWhere(x =>
+                {
+                    if (x.Level >= ILevel.Host)
+                        x.Print(message);
+                    x.PM(Settings.Get<String>("bot"), message);
+                }, x => x.LoggedIn && !x.Quarantined && x.Owner);
             }
             catch (Exception e)
             {
